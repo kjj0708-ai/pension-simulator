@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>행정공제회 vs 연금저축 ETF 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+    body { background: #f1f5f9; }
+
+    /* 슬라이더 */
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      height: 5px; border-radius: 4px; outline: none; cursor: pointer;
+    }
+    input[type=range].range-indigo { background: linear-gradient(to right, #6366f1 0%, #6366f1 var(--pct,50%), #e2e8f0 var(--pct,50%), #e2e8f0 100%); }
+    input[type=range].range-slate  { background: linear-gradient(to right, #64748b 0%, #64748b var(--pct,50%), #e2e8f0 var(--pct,50%), #e2e8f0 100%); }
+    input[type=range].range-amber  { background: linear-gradient(to right, #f59e0b 0%, #f59e0b var(--pct,50%), #e2e8f0 var(--pct,50%), #e2e8f0 100%); }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 17px; height: 17px; border-radius: 50%;
+      background: #fff; border: 2px solid #6366f1;
+      box-shadow: 0 1px 4px rgba(99,102,241,0.25);
+      transition: box-shadow 0.2s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(99,102,241,0.15); }
+    input[type=range].range-amber::-webkit-slider-thumb  { border-color: #f59e0b; box-shadow: 0 1px 4px rgba(245,158,11,0.25); }
+    input[type=range].range-amber::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.15); }
+    input[type=range].range-slate::-webkit-slider-thumb  { border-color: #64748b; box-shadow: 0 1px 4px rgba(100,116,139,0.25); }
+
+    /* 카드 */
+    .main-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+    }
+    .inner-card {
+      background: #f8fafc;
+      border: 1px solid #e9edf2;
+      border-radius: 12px;
+    }
+
+    /* 결과 카드 */
+    .result-gongje {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .result-etf {
+      background: #fffbeb;
+      border: 1.5px solid #fcd34d;
+      border-radius: 16px;
+      box-shadow: 0 1px 8px rgba(245,158,11,0.08);
+    }
+
+    /* 헤더 Hero */
+    .hero-bg {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #818cf8 100%);
+      border-radius: 16px;
+      position: relative; overflow: hidden;
+    }
+    .hero-bg::before {
+      content: '';
+      position: absolute; top: -80px; right: -80px;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-bg::after {
+      content: '';
+      position: absolute; bottom: -50px; left: 20px;
+      width: 240px; height: 240px;
+      background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* 배지 */
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 8px;
+      font-size: 12px; font-weight: 800; letter-spacing: -0.5px;
+    }
+
+    /* 구분선 */
+    .section-divider { border-color: #e9edf2; }
+
+    /* 숫자 고정폭 */
+    .stat-value { font-feature-settings: "tnum"; }
+
+    /* 스피너 */
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 스크롤바 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    @media (max-width: 640px) {
+      .hero-title { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body class="min-h-screen p-3 md:p-8">
+
+<div id="export-wrapper" class="mx-auto w-full max-w-5xl space-y-5" style="background:#f1f5f9; padding:8px;">
+
+  <!-- 헤더 Hero -->
+  <header class="hero-bg p-6 md:p-8">
+    <div class="relative z-10">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-semibold tracking-widest uppercase text-indigo-100 bg-white/15 border border-white/25 px-3 py-1 rounded-full">Financial Simulator</span>
+        <span class="text-xs text-indigo-200/70">v2.0</span>
+      </div>
+      <h1 class="hero-title text-2xl md:text-3xl font-extrabold text-white mb-2 leading-tight">
+        행정공제회 <span class="text-indigo-200">vs</span> 연금저축 ETF
+        <span class="block text-lg md:text-xl font-medium text-indigo-100/80 mt-1">장기투자 비교 시뮬레이터</span>
+      </h1>
+      <p class="text-indigo-100/70 text-sm mt-3 max-w-xl">자산 형성부터 은퇴 후 연금 수령까지, 두 방식의 최종 자산과 현금흐름 차이를 시뮬레이션합니다.</p>
+      <p class="text-yellow-200/90 text-xs mt-3 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        본 시뮬레이션 결과는 세금을 감안하지 않은 세전 기준입니다.
+      </p>
+    </div>
+  </header>
+
+  <!-- 1단계: 자산 형성기 -->
+  <section class="main-card p-5 md:p-6">
+    <h2 class="text-sm font-bold mb-5 flex items-center gap-2.5 pb-3 border-b section-divider">
+      <span class="badge bg-indigo-100 text-indigo-700 border border-indigo-200">1</span>
+      <span class="text-slate-800 font-semibold">자산 형성기</span>
+      <span class="text-slate-400 font-normal text-xs ml-1">투자 기간 시뮬레이션</span>
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <!-- 슬라이더 패널 -->
+      <div class="inner-card p-5 space-y-5">
+
+        <div>
+          <div class="flex justify-between items-center mb-2.5">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">월 납입액</span>
+            <span class="text-sm font-bold text-indigo-600 stat-value" id="lbl-monthly">50만원</span>
+          </div>
+          <input type="range" id="monthlyAmount" min="10" max="200" step="10" value="50" class="w-full range-indigo" style="--pct:25%"/>
+          <div class="flex justify-between text-xs text-slate-400 mt-1"><span>10만</span><span>200만</span></div>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-2.5">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">납입 기간</span>
+            <span class="text-sm font-bold text-indigo-600 stat-value" id="lbl-invest">30년</span>
+          </div>
+          <input type="range" id="investYears" min="5" max="40" step="1" value="30" class="w-full range-indigo" style="--pct:73%"/>
+          <div class="flex justify-between text-xs text-slate-400 mt-1"><span>5년</span><span>40년</span></div>
+        </div>
+
+        <div class="border-t section-divider pt-4 space-y-5">
+          <div>
+            <div class="flex justify-between items-center mb-2.5">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">공제회 수익률 (복리)</span>
+              <span class="text-sm font-bold text-slate-600 stat-value" id="lbl-gongjeRate">4.7%</span>
+            </div>
+            <input type="range" id="gongjeRate" min="2.0" max="6.0" step="0.1" value="4.7" class="w-full range-slate" style="--pct:68%"/>
+            <div class="flex justify-between text-xs text-slate-400 mt-1"><span>2.0%</span><span>6.0%</span></div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2.5">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">연금저축 ETF 수익률</span>
+              <span class="text-sm font-bold text-amber-600 stat-value" id="lbl-etfRate">10.0%</span>
+            </div>
+            <input type="range" id="etfRate" min="3.0" max="15.0" step="0.1" value="10.0" class="w-full range-amber" style="--pct:58%"/>
+            <div class="flex justify-between text-xs text-slate-400 mt-1"><span>3.0%</span><span>15.0%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 차트 -->
+      <div class="md:col-span-2 flex flex-col gap-4">
+        <div class="inner-card p-3 flex-1" style="min-height:240px">
+          <canvas id="chart1" style="max-height:240px"></canvas>
+        </div>
+
+        <!-- 요약 수치 -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="inner-card p-4 text-center">
+            <p class="text-xs text-slate-400 mb-1">총 납입 원금</p>
+            <p class="text-sm font-bold text-slate-700 stat-value" id="sum-principal">-</p>
+          </div>
+          <div class="inner-card p-4 text-center">
+            <p class="text-xs text-slate-400 mb-1">공제회 최종 자산</p>
+            <p class="text-sm font-bold text-slate-700 stat-value" id="sum-gongje1">-</p>
+          </div>
+          <div class="p-4 text-center rounded-xl border-2 border-amber-300" style="background:#fffbeb;">
+            <p class="text-xs text-amber-600 mb-1">연금저축 최종 자산</p>
+            <p class="text-base font-extrabold text-amber-600 stat-value" id="sum-etf1">-</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2단계: 연금 수령기 -->
+  <section class="main-card p-5 md:p-6">
+    <h2 class="text-sm font-bold mb-5 flex items-center gap-2.5 pb-3 border-b section-divider">
+      <span class="badge bg-amber-100 text-amber-700 border border-amber-200">2</span>
+      <span class="text-slate-800 font-semibold">연금 수령기</span>
+      <span class="text-slate-400 font-normal text-xs ml-1">자산 인출 시뮬레이션</span>
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+      <!-- 슬라이더 패널 -->
+      <div class="md:col-span-4 inner-card p-5 space-y-5">
+
+        <div>
+          <div class="flex justify-between items-center mb-2.5">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">수령 기간</span>
+            <span class="text-sm font-bold text-indigo-600 stat-value" id="lbl-withdraw">30년</span>
+          </div>
+          <input type="range" id="withdrawYears" min="10" max="40" step="1" value="30" class="w-full range-indigo" style="--pct:67%"/>
+          <div class="flex justify-between text-xs text-slate-400 mt-1"><span>10년</span><span>40년</span></div>
+        </div>
+
+        <div class="border-t section-divider pt-4 space-y-4">
+          <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">공제회 설정</p>
+          <div>
+            <div class="flex justify-between items-center mb-2.5">
+              <span class="text-xs text-slate-500">적용 이율</span>
+              <span class="text-sm font-bold text-slate-700 stat-value" id="lbl-gongjePost">4.0%</span>
+            </div>
+            <input type="range" id="gongjePostRate" min="1.0" max="5.0" step="0.1" value="4.0" class="w-full range-slate" style="--pct:75%"/>
+            <p class="text-xs text-slate-400 mt-1.5">기간 내 원리금 전액 소진</p>
+          </div>
+        </div>
+
+        <div class="border-t section-divider pt-4 space-y-4">
+          <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">연금저축 ETF 설정</p>
+          <div>
+            <div class="flex justify-between items-center mb-2.5">
+              <span class="text-xs text-slate-500">연 인출률</span>
+              <span class="text-sm font-bold text-amber-600 stat-value" id="lbl-etfWithdraw">4.0%</span>
+            </div>
+            <input type="range" id="etfWithdrawRate" min="2.0" max="10.0" step="0.1" value="4.0" class="w-full range-amber" style="--pct:25%"/>
+            <div class="flex justify-between text-xs text-slate-400 mt-1"><span>2.0%</span><span>10.0%</span></div>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-2.5">
+              <span class="text-xs text-slate-500">운용수익률</span>
+              <span class="text-sm font-bold text-amber-600 stat-value" id="lbl-etfCont">7.0%</span>
+            </div>
+            <input type="range" id="etfContRate" min="2.0" max="15.0" step="0.1" value="7.0" class="w-full range-amber" style="--pct:38%"/>
+            <div class="flex justify-between text-xs text-slate-400 mt-1"><span>2.0%</span><span>15.0%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 차트 2개 -->
+      <div class="md:col-span-8 flex flex-col gap-4">
+        <div class="inner-card p-4" style="height:195px">
+          <p class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">연도별 수령 연금액 비교 (현금흐름)</p>
+          <div style="height:152px"><canvas id="chart2"></canvas></div>
+        </div>
+        <div class="inner-card p-4" style="height:195px">
+          <p class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">수령 후 남은 자산 잔액 비교</p>
+          <div style="height:152px"><canvas id="chart3"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 결과 카드 -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- 공제회 -->
+    <div class="result-gongje p-6">
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-9 h-9 rounded-xl bg-slate-200 flex items-center justify-center text-lg">🐷</div>
+        <div>
+          <h3 class="text-slate-800 font-bold text-sm">행정공제회</h3>
+          <p class="text-slate-400 text-xs">확정 수령 방식</p>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="border-b section-divider pb-4">
+          <p class="text-xs text-slate-400 mb-1">월 평균 수령액</p>
+          <p class="text-3xl font-extrabold text-slate-800 stat-value" id="res-gMonthly">-</p>
+        </div>
+        <div class="flex justify-between items-center text-sm pt-1">
+          <span class="text-slate-500">총 수령 연금액</span>
+          <span class="font-bold text-slate-700 stat-value" id="res-gTotal">-</span>
+        </div>
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-slate-500">연금 종료 후 잔여 자산</span>
+          <span class="font-bold text-slate-400">0원</span>
+        </div>
+        <div class="mt-3 p-3 rounded-xl bg-slate-100 border border-slate-200">
+          <p class="text-xs text-slate-500 leading-relaxed">수령 기간 종료 시 원리금이 전액 소진되는 <span class="text-slate-700 font-semibold">확정형</span> 구조입니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ETF -->
+    <div class="result-etf p-6">
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-lg">👛</div>
+        <div>
+          <h3 class="text-amber-800 font-bold text-sm">연금저축 ETF</h3>
+          <p class="text-amber-500 text-xs">자산 증식형 방식</p>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="border-b border-amber-200 pb-4">
+          <p class="text-xs text-amber-600 mb-1">월 평균 수령액</p>
+          <p class="text-3xl font-extrabold text-amber-600 stat-value" id="res-eMonthly">-</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <p class="text-xs text-amber-500 mb-0.5">1년차 월 수령액</p>
+            <p class="font-bold text-amber-600 text-sm stat-value" id="res-eFirst">-</p>
+          </div>
+          <div>
+            <p class="text-xs text-amber-500 mb-0.5" id="lbl-lastYear">30년차 월 수령액</p>
+            <p class="font-bold text-amber-700 text-sm stat-value" id="res-eLast">-</p>
+          </div>
+        </div>
+        <div class="flex justify-between items-center text-sm border-t border-amber-200 pt-3">
+          <span class="text-amber-600">총 수령 연금액</span>
+          <span class="font-bold text-amber-700 stat-value" id="res-eTotal">-</span>
+        </div>
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-amber-600">연금 종료 후 잔여 자산</span>
+          <span class="font-extrabold text-amber-600 text-lg stat-value" id="res-eBalance">-</span>
+        </div>
+        <div class="mt-1 p-3 rounded-xl bg-amber-50 border border-amber-200">
+          <p class="text-xs text-amber-600 leading-relaxed">자산이 지속 성장하여 <span class="text-amber-700 font-semibold">다음 세대 상속</span>이 가능한 증식형 구조입니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 시사점 -->
+  <div class="rounded-2xl p-5 md:p-6" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border: 1.5px solid #c7d2fe;">
+    <div class="flex items-start gap-3">
+      <div class="text-indigo-500 mt-0.5 flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="flex-1">
+        <p class="text-slate-700 text-sm leading-relaxed">
+          행정공제회는 수령 기간 종료 시 자산이 전액 소진되는 반면, 연금저축 ETF 투자는 지속적인 자산 증식을 통해
+          <span class="text-indigo-700 font-semibold"> 풍요로운 노후를 영위함과 동시에 다음 세대로 부를 성공적으로 이전(상속)</span>할 수 있는 강력한 이점을 제공합니다.
+        </p>
+        <div class="mt-4 flex justify-end">
+          <span class="text-xs text-indigo-600 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg font-semibold tracking-wide shadow-sm">— 작성자: 초실행관 —</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 버튼 (export 밖) -->
+<div class="max-w-5xl mx-auto mt-5 flex justify-end px-1" id="btn-wrap">
+  <button onclick="downloadImage()"
+    class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] text-white"
+    style="background: linear-gradient(135deg, #6366f1, #4f46e5); box-shadow: 0 4px 20px rgba(99,102,241,0.35);">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+    결과물 이미지로 저장 (PNG)
+  </button>
+</div>
+<div class="max-w-5xl mx-auto mt-4 hidden justify-center items-center gap-2 text-indigo-600 text-sm" id="loading-wrap">
+  <svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+  이미지 생성 중... 잠시만 기다려주세요.
+</div>
+
+<script>
+// ── 유틸 ──────────────────────────────────────────
+function fmtKRW(v) {
+  if (!v || v === 0) return '0원';
+  const a = Math.abs(v);
+  const uk = Math.floor(a / 10000);
+  const man = Math.floor(a % 10000);
+  let r = uk > 0 ? uk + '억 ' : '';
+  if (man > 0 || uk === 0) r += man + '만';
+  return (v < 0 ? '-' : '') + r + '원';
+}
+function calcFV(monthly, rate, years) {
+  if (rate === 0) return monthly * 12 * years;
+  const r = (rate / 100) / 12, n = years * 12;
+  return monthly * ((Math.pow(1 + r, n) - 1) / r) * (1 + r);
+}
+function updateSliderBg(el) {
+  const min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
+  el.style.setProperty('--pct', ((val - min) / (max - min) * 100).toFixed(1) + '%');
+}
+
+// 10년 단위 레이블
+function fmtAuk(v) {
+  if (!v || v === 0) return '';
+  return (v / 10000).toFixed(1) + '억';
+}
+function show10yr(ctx) {
+  const i = ctx.dataIndex, total = ctx.dataset.data.length;
+  return (i > 0 && i % 10 === 0) || i === total - 1;
+}
+
+// ── 상태 ──────────────────────────────────────────
+const state = {
+  monthlyAmount: 50, investYears: 30, gongjeRate: 4.7, etfRate: 10.0,
+  withdrawYears: 30, gongjePostRate: 4.0, etfWithdrawRate: 4.0, etfContRate: 7.0
+};
+
+let chart1, chart2, chart3;
+
+// ── Chart.js 설정 ─────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#e9edf2';
+Chart.register(ChartDataLabels);
+
+const tooltipBase = {
+  backgroundColor: '#ffffff',
+  borderColor: '#e2e8f0',
+  borderWidth: 1,
+  padding: 10,
+  titleColor: '#1e293b',
+  bodyColor: '#64748b',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+};
+
+const labelStyle = (color) => ({
+  color,
+  font: { size: 9, weight: '700' },
+  anchor: 'end', align: 'top', offset: 3,
+  backgroundColor: 'rgba(255,255,255,0.92)',
+  borderColor: color,
+  borderWidth: 1,
+  borderRadius: 4,
+  padding: { top: 2, bottom: 2, left: 4, right: 4 },
+});
+
+function initCharts() {
+  chart1 = new Chart(document.getElementById('chart1'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      {
+        label: '누적 원금', data: [],
+        borderColor: '#cbd5e1', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0, fill: false,
+        datalabels: { display: false }
+      },
+      {
+        label: '행정공제회', data: [],
+        borderColor: '#64748b', backgroundColor: 'rgba(100,116,139,0.07)', borderWidth: 2, pointRadius: 0, fill: true,
+        datalabels: { ...labelStyle('#475569'), display: show10yr, formatter: fmtAuk, align: 'bottom' }
+      },
+      {
+        label: '연금저축(ETF)', data: [],
+        borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.07)', borderWidth: 2.5, pointRadius: 0, fill: true,
+        datalabels: { ...labelStyle('#d97706'), display: show10yr, formatter: fmtAuk, align: 'top' }
+      },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { top: 26, right: 14 } },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, color: '#475569', boxWidth: 14, padding: 16 } },
+        tooltip: { ...tooltipBase, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtKRW(ctx.parsed.y) } },
+      },
+      scales: {
+        x: { ticks: { font:{size:10}, color:'#94a3b8', callback:(v,i) => i%5===0?i+'년':'' }, grid:{display:false} },
+        y: { ticks: { font:{size:10}, color:'#94a3b8', callback: v => Math.floor(v/10000)+'억' }, grid:{color:'#f1f5f9'} }
+      }
+    }
+  });
+
+  chart2 = new Chart(document.getElementById('chart2'), {
+    type: 'bar',
+    data: { labels: [], datasets: [
+      {
+        label: '공제회 수령액', data: [],
+        backgroundColor: 'rgba(100,116,139,0.4)', borderRadius: 3, maxBarThickness: 18,
+        datalabels: { ...labelStyle('#475569'), display: show10yr, formatter: fmtAuk, align: 'end', offset: 2 }
+      },
+      {
+        label: '연금저축 수령액', data: [],
+        backgroundColor: 'rgba(245,158,11,0.55)', borderRadius: 3, maxBarThickness: 18,
+        datalabels: { ...labelStyle('#d97706'), display: show10yr, formatter: fmtAuk, align: 'end', offset: 2 }
+      },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { top: 22, right: 46 } },
+      plugins: {
+        legend: { position: 'top', labels: { font:{size:10, weight:'600'}, color:'#475569', boxWidth:12, padding:12 } },
+        tooltip: { ...tooltipBase, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtKRW(ctx.parsed.y) } },
+      },
+      scales: {
+        x: { ticks: { font:{size:9}, color:'#94a3b8', callback:(v,i)=>i===0?'':i+'년' }, grid:{display:false} },
+        y: { ticks: { font:{size:9}, color:'#94a3b8', callback: v => Math.floor(v/1000)+'천' }, grid:{color:'#f1f5f9'} }
+      }
+    }
+  });
+
+  chart3 = new Chart(document.getElementById('chart3'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      {
+        label: '공제회 잔액', data: [],
+        borderColor: '#94a3b8', backgroundColor: 'rgba(100,116,139,0.05)', borderWidth: 2, pointRadius: 0, fill: true,
+        datalabels: {
+          ...labelStyle('#475569'),
+          display: show10yr,
+          formatter: v => v === 0 ? '0원' : fmtAuk(v),
+          anchor: 'center', align: 'left', offset: 8,
+        }
+      },
+      {
+        label: '연금저축 잔액', data: [],
+        borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.06)', borderWidth: 2.5, pointRadius: 0, fill: true,
+        datalabels: {
+          ...labelStyle('#d97706'),
+          display: show10yr,
+          formatter: fmtAuk,
+          anchor: 'center', align: 'right', offset: 8,
+        }
+      },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { top: 22, right: 46 } },
+      plugins: {
+        legend: { position: 'top', labels: { font:{size:10, weight:'600'}, color:'#475569', boxWidth:12, padding:12 } },
+        tooltip: { ...tooltipBase, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtKRW(ctx.parsed.y) } },
+      },
+      scales: {
+        x: { ticks: { font:{size:9}, color:'#94a3b8', callback:(v,i)=>i===0?'시작':i+'년' }, grid:{display:false} },
+        y: { ticks: { font:{size:9}, color:'#94a3b8', callback: v => Math.floor(v/10000)+'억' }, grid:{color:'#f1f5f9'} }
+      }
+    }
+  });
+}
+
+// ── 계산 & 렌더 ───────────────────────────────────
+function update() {
+  const { monthlyAmount, investYears, gongjeRate, etfRate,
+          withdrawYears, gongjePostRate, etfWithdrawRate, etfContRate } = state;
+
+  const p1L=[], p1P=[], p1G=[], p1E=[];
+  let fG=0, fE=0;
+  for (let i=0; i<=investYears; i++) {
+    p1L.push(i+'년');
+    p1P.push(Math.round(monthlyAmount*12*i));
+    const g=Math.round(calcFV(monthlyAmount,gongjeRate,i));
+    const e=Math.round(calcFV(monthlyAmount,etfRate,i));
+    p1G.push(g); p1E.push(e);
+    if (i===investYears){fG=g;fE=e;}
+  }
+  chart1.data.labels=p1L;
+  chart1.data.datasets[0].data=p1P;
+  chart1.data.datasets[1].data=p1G;
+  chart1.data.datasets[2].data=p1E;
+  chart1.update();
+
+  document.getElementById('sum-principal').textContent=fmtKRW(monthlyAmount*12*investYears);
+  document.getElementById('sum-gongje1').textContent=fmtKRW(fG);
+  document.getElementById('sum-etf1').textContent=fmtKRW(fE);
+
+  const gR=(gongjePostRate/100)/12, gN=withdrawYears*12;
+  const gM=gR>0?fG*(gR/(1-Math.pow(1+gR,-gN))):fG/gN;
+  const gA=gM*12;
+  let gBal=fG, yBal=fE;
+  const p2L=[],p2GP=[],p2EP=[],p2GB=[],p2EB=[];
+  let totG=0,totE=0,eF=0,eL=0;
+
+  for (let i=0;i<=withdrawYears;i++){
+    p2L.push(i===0?'시작':i+'년');
+    if(i===0){p2GP.push(0);p2EP.push(0);p2GB.push(Math.round(gBal));p2EB.push(Math.round(yBal));continue;}
+    let curG=gA;
+    if(gBal<curG&&i===withdrawYears){curG=gBal;gBal=0;}
+    else{
+      if(gR>0){const fvifa=(Math.pow(1+gR,12)-1)/gR;gBal=gBal*Math.pow(1+gR,12)-gM*fvifa;}
+      else{gBal-=gA;}
+      if(gBal<0||i===withdrawYears)gBal=0;
+    }
+    const yP=yBal*(etfWithdrawRate/100);
+    yBal=yBal*(1+(etfContRate-etfWithdrawRate)/100);
+    totG+=curG; totE+=yP;
+    if(i===1)eF=yP;
+    if(i===withdrawYears)eL=yP;
+    p2GP.push(Math.round(curG)); p2EP.push(Math.round(yP));
+    p2GB.push(Math.max(0,Math.round(gBal))); p2EB.push(Math.max(0,Math.round(yBal)));
+  }
+
+  chart2.data.labels=p2L; chart2.data.datasets[0].data=p2GP; chart2.data.datasets[1].data=p2EP; chart2.update();
+  chart3.data.labels=p2L; chart3.data.datasets[0].data=p2GB; chart3.data.datasets[1].data=p2EB; chart3.update();
+
+  document.getElementById('res-gMonthly').textContent=fmtKRW(Math.round(totG/(withdrawYears*12)));
+  document.getElementById('res-gTotal').textContent=fmtKRW(Math.round(totG));
+  document.getElementById('res-eMonthly').textContent=fmtKRW(Math.round(totE/(withdrawYears*12)));
+  document.getElementById('res-eFirst').textContent=fmtKRW(Math.round(eF/12));
+  document.getElementById('res-eLast').textContent=fmtKRW(Math.round(eL/12));
+  document.getElementById('res-eTotal').textContent=fmtKRW(Math.round(totE));
+  document.getElementById('res-eBalance').textContent=fmtKRW(p2EB[p2EB.length-1]);
+  document.getElementById('lbl-lastYear').textContent=withdrawYears+'년차 월 수령액';
+}
+
+// ── 이벤트 바인딩 ─────────────────────────────────
+[
+  ['monthlyAmount','lbl-monthly',v=>v+'만원'],
+  ['investYears','lbl-invest',v=>v+'년'],
+  ['gongjeRate','lbl-gongjeRate',v=>parseFloat(v).toFixed(1)+'%'],
+  ['etfRate','lbl-etfRate',v=>parseFloat(v).toFixed(1)+'%'],
+  ['withdrawYears','lbl-withdraw',v=>v+'년'],
+  ['gongjePostRate','lbl-gongjePost',v=>parseFloat(v).toFixed(1)+'%'],
+  ['etfWithdrawRate','lbl-etfWithdraw',v=>parseFloat(v).toFixed(1)+'%'],
+  ['etfContRate','lbl-etfCont',v=>parseFloat(v).toFixed(1)+'%'],
+].forEach(([id,lblId,fmt])=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', function(){
+    state[id] = parseFloat(this.value);
+    document.getElementById(lblId).textContent = fmt(this.value);
+    updateSliderBg(this);
+    update();
+  });
+  updateSliderBg(el);
+});
+
+// ── PNG 저장 ──────────────────────────────────────
+function downloadImage(){
+  document.getElementById('btn-wrap').style.display='none';
+  document.getElementById('loading-wrap').style.display='flex';
+  setTimeout(()=>{
+    html2canvas(document.getElementById('export-wrapper'),{
+      scale:2, useCORS:true, backgroundColor:'#f1f5f9', logging:false
+    })
+    .then(canvas=>{
+      const a=document.createElement('a');
+      a.download='연금시뮬레이터_결과.png';
+      a.href=canvas.toDataURL('image/png');
+      a.click();
+    }).catch(err=>{console.error(err);alert('오류 발생');})
+    .finally(()=>{
+      document.getElementById('btn-wrap').style.display='flex';
+      document.getElementById('loading-wrap').style.display='none';
+    });
+  },500);
+}
+
+window.addEventListener('load', ()=>{ initCharts(); update(); });
+</script>
+</body>
+</html>
